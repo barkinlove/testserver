@@ -17,3 +17,8 @@ add_executable(
   common/packet.cxx
   common/checksum.cxx
 )
+
+add_custom_target(
+  run
+  COMMAND ${CMAKE_BINARY_DIR}/bin/test_server & ; ${CMAKE_BINARY_DIR}/bin/test_client ${CMAKE_BINARY_DIR}/file.txt
+)

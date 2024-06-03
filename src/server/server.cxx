@@ -69,7 +69,8 @@ void server::process_put(const packet& pack, size_t read_bytes) {
       ++it;
     }
     auto crc32 = htonl(checksum::crc32(0, transfer.data.data(), length));
-    std::cout << "(file id -> " << id << ") checksum: " << ntohl(crc32) << '\n';
+    std::cout << "[server](file id -> " << id << ") checksum: " << ntohl(crc32)
+              << '\n';
 
     ack_packet.type = packet::operation_t::ACK;
     ack_packet.seq_total = htonl(transfer.total_parts);
