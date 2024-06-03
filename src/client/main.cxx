@@ -93,7 +93,7 @@ int main(int argc, const char* argv[]) {
   std::vector<packet> packets1 = create_packets(1, file_buffer);
   std::vector<packet> packets2 = create_packets(2, file_buffer2);
 
-  std::vector<packet> packets{packets1.begin(), packets2.end()};
+  std::vector<packet> packets{packets1.begin(), packets1.end()};
   packets.insert(packets.end(), packets2.begin(), packets2.end());
 
   // TODO: move packets endiannes transformation to a separate function
