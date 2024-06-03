@@ -35,5 +35,5 @@ Or execute cmake target `run`
 cmake --target run
 ```
 
-> note: the client reads only one file and then creates its reversed copy and then 
+> note: the client reads one file only and then creates its reversed copy and
 > sends it as the second one.
