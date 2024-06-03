@@ -13,6 +13,7 @@
 #include <iostream>
 #include <iterator>
 #include <random>
+#include <unordered_map>
 #include <vector>
 #include "checksum.hxx"
 #include "packet.hxx"
@@ -31,18 +32,18 @@ size_t compute_packet_nubmer(size_t raw_byte_number) {
              : raw_byte_number / packet::max_data_size + 1;
 }
 
+std::unordered_map<packet::id_t, size_t> file_parts;
+
 std::vector<packet> create_packets(unsigned long long id,
                                    const std::vector<std::byte>& buffer) {
   std::vector<packet> packets;
-  std::cout << "BUFFER SIZE: " << buffer.size() << '\n';
   size_t packet_number = compute_packet_nubmer(buffer.size());
-  std::cout << packet_number << '\n';
+  file_parts.insert({id, packet_number});
   packets.resize(packet_number);
 
   auto buffer_it = buffer.cbegin();
   for (auto it = packets.begin(); it != packets.end(); ++it) {
     std::uint32_t seq_number = std::distance(packets.begin(), it) + 1;
-    std::cout << "seq_number: " << seq_number << '\n';
 
     auto& packet = *it;
     packet.id = id;
@@ -61,6 +62,12 @@ std::vector<packet> create_packets(unsigned long long id,
   return packets;
 }
 
+void host_to_network(packet& pack) {
+  pack.id = htobe64(pack.id);
+  pack.seq_number = htonl(pack.seq_number);
+  pack.seq_total = htonl(pack.seq_total);
+}
+
 int main(int argc, const char* argv[]) {
   if (argc != 2) {
     std::cout << "specify a file to transfer\n";
@@ -77,10 +84,21 @@ int main(int argc, const char* argv[]) {
   const std::vector<std::byte> file_buffer = read_file(filepath);
   const auto checksum =
       checksum::crc32(0, file_buffer.data(), file_buffer.size());
-  std::vector<packet> packets = create_packets(1, file_buffer);
+
+  const std::vector<std::byte> file_buffer2{file_buffer.rbegin(),
+                                            file_buffer.rend()};
+  const auto checksum2 =
+      checksum::crc32(0, file_buffer2.data(), file_buffer2.size());
+
+  std::vector<packet> packets1 = create_packets(1, file_buffer);
+  std::vector<packet> packets2 = create_packets(2, file_buffer2);
+
+  std::vector<packet> packets{packets1.begin(), packets2.end()};
+  packets.insert(packets.end(), packets2.begin(), packets2.end());
 
   // TODO: move packets endiannes transformation to a separate function
-  std::cout << "file checksum: " << checksum << '\n';
+  std::cout << "file 1 checksum: " << checksum << '\n';
+  std::cout << "file 2 checksum: " << checksum2 << '\n';
 
   int socket_desc = socket(AF_INET, SOCK_DGRAM, 0);
   timeval time;
@@ -96,16 +114,13 @@ int main(int argc, const char* argv[]) {
   server.sin_port = htons(1234);
 
   for (auto& packet : packets) {
-    packet.id = htobe64(packet.id);
-    packet.seq_number = htonl(packet.seq_number);
-    packet.seq_total = htonl(packet.seq_total);
+    host_to_network(packet);
   }
 
   std::shuffle(packets.begin(), packets.end(),
                std::mt19937{std::random_device{}()});
 
   for (const auto& pack : packets) {
-    std::cout << "sending...\n";
     sendto(socket_desc, &pack, sizeof(pack), 0,
            reinterpret_cast<sockaddr*>(&server), sizeof(server));
     packet ack_packet;
@@ -114,8 +129,9 @@ int main(int argc, const char* argv[]) {
                       reinterpret_cast<sockaddr*>(&server), &server_size);
     correct_endianness(ack_packet);
 
-    if (ack_packet.type == packet::operation_t::ACK &&
-        ack_packet.seq_total == packets.size()) {
+    auto it = file_parts.find(ack_packet.id);
+    if (ack_packet.type == packet::operation_t::ACK && it != file_parts.end() &&
+        ack_packet.seq_total == it->second) {
       std::uint32_t checksum;
       std::memcpy(&checksum, ack_packet.payload.data(), sizeof(checksum));
       std::cout << "recieved checksum: " << ntohl(checksum) << '\n';

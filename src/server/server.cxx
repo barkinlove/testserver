@@ -35,8 +35,6 @@ bool error_occured(ssize_t value) {
 
 void save(const std::byte* buffer) {}
 
-bool skip_first = true;
-
 void server::process_put(const packet& pack, size_t read_bytes) {
   auto id = pack.id;
 
@@ -60,12 +58,10 @@ void server::process_put(const packet& pack, size_t read_bytes) {
   // std::memmove ?
   std::memcpy(dest, pack.payload.data(), payload_size);
 
-  std::cout << transfer.recieved_parts << '\n';
-
   transfer.recieved_parts += 1;
 
   packet ack_packet;
-  if (transfer.recieved_parts == seq_total) {
+  if (transfer.recieved_parts == transfer.total_parts) {
     auto length = packet::max_data_size * (transfer.total_parts - 1);
     auto it = transfer.data.cbegin() + length;
     while (*it != std::byte{0}) {
@@ -73,22 +69,19 @@ void server::process_put(const packet& pack, size_t read_bytes) {
       ++it;
     }
     auto crc32 = htonl(checksum::crc32(0, transfer.data.data(), length));
-    std::cout << "checksum: " << ntohl(crc32) << '\n';
+    std::cout << "(file id -> " << id << ") checksum: " << ntohl(crc32) << '\n';
 
     ack_packet.type = packet::operation_t::ACK;
     ack_packet.seq_total = htonl(transfer.total_parts);
+    ack_packet.id = htobe64(id);
     std::memcpy(ack_packet.payload.data(), &crc32, sizeof(crc32));
     // save(ack_packet.payload);
     _transfers.erase(transfer_it);
   } else {
     ack_packet.type = packet::operation_t::ACK;
     ack_packet.seq_number = ntohl(pack.seq_number);
+    ack_packet.seq_total = 0;
     ack_packet.id = htobe64(id);
-  }
-  std::cout << "sending to client acknowledgement\n";
-  if (skip_first) {
-    skip_first = false;
-    return;
   }
   sendto(_socket_desc, &ack_packet, packet::max_data_size, 0,
          reinterpret_cast<sockaddr*>(&_client), sizeof(_client));
@@ -116,7 +109,6 @@ void server::listen() {
     ssize_t read_bytes =
         recvfrom(_socket_desc, &packet, sizeof(packet), 0,
                  reinterpret_cast<sockaddr*>(&_client), &client_size);
-    std::cout << "recieved bytes: " << read_bytes << '\n';
 
     if (error_occured(read_bytes))
       continue;
