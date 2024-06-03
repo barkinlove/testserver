@@ -5,7 +5,7 @@ project(
   VERSION 1.0
   LANGUAGES CXX)
 
-add_executable(
-  ${PROJECT_NAME}
-  src/main.cxx
-)
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
+add_subdirectory(src bin)
