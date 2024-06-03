@@ -32,7 +32,13 @@ cmake .. && cmake --build . --parallel $(nproc)
 Or execute cmake target `run`
 
 ```
-cmake --target run
+cmake --build . --target run
+```
+
+or 
+
+```
+make run
 ```
 
 > note: the client reads one file only and then creates its reversed copy and
