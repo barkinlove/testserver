@@ -20,5 +20,8 @@ add_executable(
 
 add_custom_target(
   run
-  COMMAND ${CMAKE_BINARY_DIR}/bin/test_server & ; ${CMAKE_BINARY_DIR}/bin/test_client ${CMAKE_BINARY_DIR}/file.txt
+  COMMAND ${CMAKE_BINARY_DIR}/bin/test_server &
+  COMMAND sleep 0.5
+  COMMAND ${CMAKE_BINARY_DIR}/bin/test_client ${CMAKE_BINARY_DIR}/file.txt
+  COMMAND pgrep -i test_server | xargs kill
 )
