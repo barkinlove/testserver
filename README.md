@@ -1,7 +1,7 @@
 # Simple test udp client + server
 
 ### Prerequesities
-- compiled with gcc v14.1 
+- compiled with gcc v14.1
 - cmake v3.14
 - OS: linux
 - ninja (optional, for the faster build)
@@ -35,7 +35,7 @@ Or execute cmake target `run`
 cmake --build . --target run
 ```
 
-or 
+or
 
 ```
 make run
@@ -43,3 +43,6 @@ make run
 
 > note: the client reads one file only and then creates its reversed copy and
 > sends it as the second one.
+
+> note2: to see a file parted in multiple packets you need to add content to
+> the `build/file.txt` or create another and pass it to the client
